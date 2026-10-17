@@ -60,17 +60,35 @@ static void add_line(int start, int len, int style)
     ls[nl] = start; ll[nl] = (short)len; lst[nl] = (unsigned char)style; nl++;
 }
 
-/* markdown inline cleanup: **bold**, __bold__, `code`, [text](url) -> text (url) */
+/* markdown inline cleanup: **bold**, __bold__, *italic*, _italic_, `code`, ~~strike~~, [text](url) -> text, ![alt](url) -> alt */
 static int md_clean(char *s, int n)
 {
     char *o = s;
     for (int i = 0; i < n; i++) {
-        if ((s[i] == '*' && i + 1 < n && s[i + 1] == '*') || (s[i] == '_' && i + 1 < n && s[i + 1] == '_')) { i++; continue; }
-        if (s[i] == '`') continue;
-        *o++ = s[i];
+        char c = s[i];
+        if (c == '!' && i + 1 < n && s[i + 1] == '[') continue;
+        if (c == '[') {                                            /* [text](url) */
+            int j = i + 1; while (j < n && s[j] != ']') j++;
+            if (j + 1 < n && s[j] == ']' && s[j + 1] == '(') {
+                int k = j + 2; while (k < n && s[k] != ')') k++;
+                if (k < n) { for (int t = i + 1; t < j; t++) *o++ = s[t]; i = k; continue; }
+            }
+        }
+        if (c == '*' || c == '`' || (c == '~' && i + 1 < n && s[i + 1] == '~')) { if (c == '~') i++; continue; }
+        if (c == '_') {                                            /* emphasis only at word edges, keep snake_case */
+            int pa = i > 0 && (s[i - 1] == ' ' || s[i - 1] == '_'), na = i + 1 < n && (s[i + 1] == ' ' || s[i + 1] == '_');
+            int pe = i == 0, ne = i + 1 >= n;
+            if (pe || ne || pa || na) continue;
+        }
+        *o++ = c;
     }
     return (int)(o - s);
 }
+
+/* per-style layout: size, row height and characters per row (markdown headings are bigger, like on GitHub) */
+static float st_scale(int st) { return st == 1 ? 0.72f : st == 2 ? 0.60f : st == 3 ? 0.50f : VSCALE; }
+static int   st_h(int st)     { return st == 1 ? 32 : st == 2 ? 26 : st == 3 ? 21 : LINE_H; }
+static int   st_cols(int st)  { return (int)(VCOLS * VSCALE / st_scale(st)); }
 
 static void build_lines(void)
 {
@@ -98,9 +116,14 @@ static void build_lines(void)
             else {
                 int h = 0; while (h < len && s[h] == '#') h++;
                 if (h > 0 && h <= 6 && h < len && s[h] == ' ') { style = h == 1 ? 1 : (h == 2 ? 2 : 3); skip = h + 1; }
+                else if (len >= 3 && s[0] == '|' && strspn(s, "|-: ") == (size_t)len) style = 7;   /* table header rule */
                 else if (len >= 3 && (!strncmp(s, "---", 3) || !strncmp(s, "***", 3) || !strncmp(s, "___", 3))) style = 7;
                 else if (len >= 2 && s[0] == '>' ) { style = 5; skip = s[1] == ' ' ? 2 : 1; }
-                else if (len >= 2 && (s[0] == '-' || s[0] == '*' || s[0] == '+') && s[1] == ' ') { style = 6; s[0] = '*'; }
+                else {
+                    int lead = 0; while (lead < len && s[lead] == ' ') lead++;
+                    if (lead + 1 < len && (s[lead] == '-' || s[lead] == '*' || s[lead] == '+') && s[lead + 1] == ' ') { style = 6; s[lead] = '*'; }
+                    else if (len >= 2 && s[0] == '[' && s[1] == ' ') style = 0;
+                }
                 if (style != 7) { len = skip + md_clean(s + skip, len - skip); }
             }
         }
@@ -110,8 +133,9 @@ static void build_lines(void)
         else if (rem <= 0) add_line(start, 0, style);
         else {
             while (rem > 0 && nl < MAXL) {
-                int take = rem > VCOLS ? VCOLS : rem;
-                if (rem > VCOLS && style != 4) {            /* wrap at the last space */
+                int cols = st_cols(style);
+                int take = rem > cols ? cols : rem;
+                if (rem > cols && style != 4) {            /* wrap at the last space */
                     int sp = take;
                     while (sp > 8 && tbuf[start + sp] != ' ') sp--;
                     if (sp > 8) take = sp;
@@ -240,16 +264,20 @@ void viewer_frame(const PadState *p)
     mtext(10, 6, RGBA(255, 255, 255, 0x80), E[idx].name, 30, vframe, 0.5f);
     textf_s_view(W() - 110, 6, RGBA(170, 190, 255, 0x80), a, b);
     if (mode == 0) {
-        for (int r = 0; r < rows && top + r < nl; r++) {
-            int i = top + r;
-            float y = 40 + r * LINE_H;
-            if (lst[i] == 7) { rect(20, y + LINE_H / 2, W() - 40, 1, RGBA(90, 90, 130, 0x80)); continue; }
-            if (ll[i] <= 0) continue;
-            char line[VCOLS + 4];
-            int n = ll[i] > VCOLS ? VCOLS : ll[i];
-            memcpy(line, tbuf + ls[i], n); line[n] = 0;
-            if (lst[i] == 1 || lst[i] == 2) rect(16, y + LINE_H - 3, W() - 32, 1, RGBA(90, 80, 40, 0x60));
-            text_s(24, y, style_color(lst[i]), line, VSCALE);
+        float y = 40;
+        for (int i = top; i < nl && y < H() - 30; i++) {
+            int st = lst[i], hh = st_h(st);
+            if (st == 7) { rect(20, y + hh / 2, W() - 40, 1, RGBA(90, 90, 130, 0x80)); y += hh; continue; }
+            if (ll[i] > 0) {
+                char line[VCOLS + 4];
+                int n = ll[i] > VCOLS ? VCOLS : ll[i];
+                memcpy(line, tbuf + ls[i], n); line[n] = 0;
+                if (st == 1 || st == 2) rect(16, y + hh - 3, W() - 32, 1, RGBA(90, 80, 40, 0x60));
+                if (st == 5) rect(16, y, 3, hh, RGBA(110, 120, 190, 0x80));
+                if (st == 4) rect(18, y - 1, W() - 36, hh, RGBA(20, 30, 28, 0x70));
+                text_s(24, y, style_color(st), line, st_scale(st));
+            }
+            y += hh;
         }
         if (nl > rows) { float f = (float)top / (float)(nl - rows); rect(W() - 8, 40, 4, rows * LINE_H, RGBA(40, 40, 70, 0x80)); rect(W() - 8, 40 + f * (rows * LINE_H - 30), 4, 30, RGBA(150, 150, 255, 0x80)); }
         text_s(10, H() - 20, RGBA(200, 200, 230, 0x80), "< >: File   ^v: Scroll   L1/R1: Page   O: Close", 0.42f);

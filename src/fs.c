@@ -38,6 +38,23 @@ static int host_dopen(const char *path)
     return fd;
 }
 
+/* host: entries come from the classic fio driver. Its mode bits are not the fileXio ones (fio: file 0x10, dir 0x20; fileXio: dir 0x1000),
+   and emulators add permission bits on top, so a plain FIO_S_ISDIR() shows every folder as a file. Decide by the bits when they are
+   unambiguous, otherwise ask the driver: a name that opens as a directory is a directory. */
+static int host_mode_is_dir(unsigned mode, const char *dir, const char *name)
+{
+    if (mode & 0xF000) return (mode & 0xF000) == 0x1000;
+    int d = (mode & 0x20) != 0, r = (mode & 0x10) != 0;
+    if (d && !r) return 1;
+    if (r && !d) return 0;
+    char p[PATH_MAX_LEN];
+    size_t l = strlen(dir);
+    snprintf(p, sizeof p, "%s%s%s", dir, (l && dir[l - 1] == '/') ? "" : "/", name);
+    int fd = host_dopen(p);
+    if (fd >= 0) { fioDclose(fd); return 1; }
+    return 0;
+}
+
 int fs_host_available(void)
 {
     int fd = host_dopen("host:/");
@@ -120,7 +137,7 @@ int fs_list(const char *path, Entry *out, int max, int show_hidden)
             if (!show_hidden && hd.name[0] == '.') continue;
             strncpy(out[hn].name, hd.name, sizeof out[hn].name - 1);
             out[hn].name[sizeof out[hn].name - 1] = 0;
-            out[hn].is_dir = FIO_S_ISDIR(hd.stat.mode) ? 1 : 0;
+            out[hn].is_dir = host_mode_is_dir(hd.stat.mode, path, hd.name);
             out[hn].size = hd.stat.size;
             out[hn].marked = 0;
             hn++;

@@ -38,8 +38,9 @@ static int is_text_name(const char *name)
 
 FKind ftype_of(const char *name)
 {
-    if (is_text_name(name)) return FK_TEXT;
     const char *d = strrchr(name, '.');
+    if (d && d != name && in_list(d + 1, "md markdown")) return FK_MD;      /* README.md is Markdown, not just "a README" */
+    if (is_text_name(name)) return FK_TEXT;
     if (!d || d == name) return FK_OTHER;
     const char *e = d + 1;
     if (in_list(e, "elf")) return FK_ELF;
