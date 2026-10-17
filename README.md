@@ -6,19 +6,13 @@ Built with PS2SDK + gsKit. Developed by **MexrlDev**. MIT licensed. Test on a re
 ## Preview
 
 <p align="center">
-  <img src=".img/img7.png" alt="Preview">
+  <img src=".img/img1.png" alt="Preview">
 </p>
 
 <hr>
 
 <details>
 <summary>See more</summary>
-
-<p align="center">
-  <img src=".img/img1.png" alt="Preview 1">
-</p>
-
-<hr>
 
 <p align="center">
   <img src=".img/img2.png" alt="Preview 2">
@@ -46,6 +40,12 @@ Built with PS2SDK + gsKit. Developed by **MexrlDev**. MIT licensed. Test on a re
 
 <p align="center">
   <img src=".img/img6.png" alt="Preview 6">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img7.png" alt="Preview 7">
 </p>
 
 </details>
