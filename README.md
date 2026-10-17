@@ -1,4 +1,5 @@
-# PrismELF - PS2 file manager / ELF launcher / viewer (homebrew)
+# PrismELF
+- PS2 file manager / ELF launcher / viewer
 
 Built with PS2SDK + gsKit. Developed by **MexrlDev**. MIT licensed. Test on a real console.
 
