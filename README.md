@@ -3,6 +3,55 @@
 
 Built with PS2SDK + gsKit. Developed by **MexrlDev**. MIT licensed. Test on a real console.
 
+## Preview
+
+<p align="center">
+  <img src=".img/img7.png" alt="Preview">
+</p>
+
+<hr>
+
+<details>
+<summary>See more</summary>
+
+<p align="center">
+  <img src=".img/img1.png" alt="Preview 1">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img2.png" alt="Preview 2">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img3.png" alt="Preview 3">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img4.png" alt="Preview 4">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img5.png" alt="Preview 5">
+</p>
+
+<hr>
+
+<p align="center">
+  <img src=".img/img6.png" alt="Preview 6">
+</p>
+
+</details>
+
+---
+
 ## Features
 - Dark-blue splash (X/O skips), background, per-type icons: folder, **blue ELF**, audio, image, video, text/markdown, archive, generic file
 - Starts on USB (`mass:`). **Memory cards use the console's ROM driver + libmc (like wLaunchELF)**, loaded only when you open them, read in the background with **O = cancel**
